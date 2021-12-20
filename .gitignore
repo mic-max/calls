@@ -1,3 +1,5 @@
-
-*.png
-*.xml
+__pycache__/
+history.bin
+history.xml
+calls.png
+config.yml
