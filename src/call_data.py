@@ -4,14 +4,13 @@ from enum import Enum
 
 
 class CallType(Enum):
-    Incoming = 0
-    Outgoing = 1
-    Missed = 2
-    Voicemail = 3
-    Rejected = 4
-    Blocked = 5
-    AnsweredExternally = 6
-
+    Incoming = 1
+    Outgoing = 2
+    Missed = 3
+    Voicemail = 4
+    Rejected = 5
+    Blocked = 6
+    AnsweredExternally = 7
 
 class CallData:
     def __init__(self, number: str, start: datetime, end: datetime, call_type: CallType):
@@ -20,6 +19,3 @@ class CallData:
         self.end = end
         self.call_type = call_type
         self.duration = self.end - self.start
-
-    def __str__(self):
-        return f'{self.call_type.name}: {self.number} - {self.start} - {self.duration}'
