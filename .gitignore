@@ -1,6 +1,4 @@
 __pycache__/
-history.bin
-history.xml
-calls.png
-config.yml
+input/
 *_pb2.py
+*.png

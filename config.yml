@@ -1,0 +1,36 @@
+# General Colours
+types:
+  Incoming: 0x2ECC71
+  Outgoing: 0x3498DB
+  Missed: 0xE67E22
+  Voicemail: 0x95A5A6
+  Rejected: 0xE74C3C
+  Blocked: 0x9B59B6
+  AnsweredExternally: 0xF1C40F
+
+background: 0x2C3E50
+grid: 0x161F28
+text: 0xFFFFFF
+
+rollover: 0x9B59B6
+expired: 0xFF00FF
+
+# Dimensions
+size:
+  sh: 4
+  day-width: 40
+  legend-width: 42
+
+# Numbers
+top-callers: 9
+max-call-length: 9000
+start-hour: 0
+
+# Filtering
+# Set to `null` or remove for an unbounded date range
+start: 1970-01-01 00:00:00
+end: null
+# true=include, false=exclude, null=allow all
+show: null
+numbers:
+  '206xxxxxx': 0xFDA7DF

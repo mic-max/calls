@@ -7,50 +7,65 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 # Local
 from call_data import CallData, CallType
-from calls_pb2 import *
 
 
 class HistoryParser:
-    def __init__(self, infile):
-        self.data = infile.read()
-        self.file_name = infile.name
+    @staticmethod
+    def parse(infile):
+        data = infile.read()
         infile.close()
 
-    def parse(self):
-        """ Returns a list of Call objects """
-        if self.file_name.endswith('.xml'):
-            return self.parse_xml()
-        else:
-            return self.parse_protobuf()
+        if infile.name.endswith('.xml'):
+            return HistoryParser._parse_xml(data)
+        elif infile.name.endswith('.aiob'):
+            return HistoryParser._parse_aiob(data)
+        elif infile.name.endswith('.bin'):
+            return HistoryParser._parse_protobuf(data)
+        raise Exception("Unsupported file type")
 
-    def parse_protobuf(self):
+    @staticmethod
+    def _parse_xml(data):
         result = []
 
-        call_history = CallHistory()
-        call_history.ParseFromString(self.data)
-        for call in call_history.calls:
-            end = Timestamp()
-            end.seconds = call.start.seconds + call.duration.seconds
-            result.append(
-                CallData(call.number, call.start.ToDatetime(), end.ToDatetime(), call.type))
-
-        return result
-
-    def parse_xml(self):
-        result = []
-
-        root = ET.fromstring(self.data)
+        xml_data = ET.canonicalize(data, strip_text=True)
+        root = ET.fromstring(xml_data)
         for child in root:
-            # Note: Only takes the last 10 digits of the phone number
-            number = child[0].text.strip()[-10:]
-            if not number:
-                continue
-            start = datetime.fromtimestamp(int(child[1].text.strip()) / 1000)
-            end = start + timedelta(0, int(child[2].text.strip()))
-            call_type = CallType(int(child[3].text.strip()) - 1)
+            number = child.findtext('phoneNumber')
+            start = datetime.fromtimestamp(int(child.findtext('dateTime')) / 1000)
+            end = start + timedelta(0, int(child.findtext('callDuration')))
+            call_type = CallType(int(child.findtext('logType')))
             result.append(CallData(number, start, end, call_type))
 
         return result
 
-    # def parse_sqlite(self):
-        # return []
+    @staticmethod
+    def _parse_aiob(data):
+        result = []
+
+        xml_data = ET.canonicalize(data, strip_text=True)
+        root = ET.fromstring(xml_data).find('File').find('Data')
+        for child in root:
+            number = child.findtext('PhoneNumber')
+            start = datetime.fromtimestamp(int(child.findtext('Timestamp')) / 1000)
+            end = start + timedelta(0, int(child.findtext('Duration')))
+            call_type = CallType(int(child.findtext('CallType')))
+            result.append(CallData(number, start, end, call_type))
+
+        return result
+
+    @staticmethod
+    def _parse_protobuf(data):
+        from history_pb2 import CallHistory
+        result = []
+
+        call_history = CallHistory()
+        call_history.ParseFromString(data)
+        for call in call_history.calls:
+            number = call.number
+            # TODO timezone issues
+            start = call.start.ToDatetime()
+            end = Timestamp(seconds=call.start.seconds + call.duration.seconds).ToDatetime()
+            call_type = CallType(call.type)
+            result.append(CallData(number, start, end, call_type))
+
+        return result

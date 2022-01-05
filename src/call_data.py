@@ -14,7 +14,7 @@ class CallType(Enum):
 
 class CallData:
     def __init__(self, number: str, start: datetime, end: datetime, call_type: CallType):
-        self.number = number
+        self.number = number[-10:] # Excludes country code e.g. +1
         self.start = start
         self.end = end
         self.call_type = call_type

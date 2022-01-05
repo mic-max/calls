@@ -2,31 +2,37 @@
 from argparse import ArgumentParser, FileType
 from collections import Counter, OrderedDict
 from datetime import timedelta
+from typing import List
 
 # Pip
 from PIL import Image, ImageDraw
 
 # Local
+from call_data import CallData
 from config import Config
 from history_parser import HistoryParser
 
 
-def should_include(call):
+def should_include(call: CallData):
     # Within the configured time window
-    if config.start != None and call.end < config.start:
+    if config.start is not None and call.end < config.start:
+        return False
+    if config.end is not None and call.start > config.end:
         return False
 
-    if config.end != None and call.start > config.end:
+    # Exclude phone numbers less than 10 digits
+    if len(call.number) < 10:
         return False
 
-    # An empty whitelist / blacklist should include all calls
+    # An empty include / exclude list includes all calls
     if (config.show is None or not config.numbers):
         return True
 
+    # Include / Exclude List
     return (call.number in list(config.numbers.keys())) == config.show
 
 
-def draw_call_block(x, y1, y2, fill, side, top, bottom):
+def draw_call_block(x: int, y1: int, y2: int, fill, side, top, bottom):
     dw = config.day_width
     draw.rectangle((x, y1, x + dw, y2), fill)
     if side is not None:
@@ -38,11 +44,11 @@ def draw_call_block(x, y1, y2, fill, side, top, bottom):
         draw.line((x, y2, x + dw - 1, y2), bottom)
 
 
-def draw_text(x, y, text):
+def draw_text(x: int, y: int, text: str):
     draw.text((x, y), text, config.colour_text)
 
 
-def call_durations_by_number(calls):
+def call_durations_by_number(calls: List[CallData]):
     result = {}
     for call in calls:
         if call.number not in result:
@@ -51,7 +57,7 @@ def call_durations_by_number(calls):
     return OrderedDict(sorted(result.items(), key=lambda kv: kv[1], reverse=True))
 
 
-def render_image(calls):
+def render_image(calls: List[CallData]):
     # Add 2 days of padding to the date range
     min_date = min([x.start for x in calls]) - timedelta(1)
     max_date = max([x.end for x in calls]) + timedelta(2)
@@ -74,7 +80,7 @@ def render_image(calls):
     # Note: This will help short calls from being covered, e.g. missed, rejected
     for call in sorted(calls, key=lambda x: x.duration, reverse=True):
         fill = config.types[call.call_type]
-        side = config.numbers[call.number] if config.numbers and call.number in config.numbers else config.colour_default
+        side = config.numbers[call.number] if config.numbers and call.number in config.numbers else None
 
         minute_start = call.start.hour * 60 + call.start.minute
         minute_end = call.end.hour * 60 + call.end.minute
@@ -97,8 +103,11 @@ def render_image(calls):
     i = 0
     while cur_time <= max_date:
         draw.line((i * dw, 0, i * dw, height), config.colour_grid)
+        year_text = ''
+        if i == 0 or cur_time.year != last_time.year:
+            year_text = '`' + cur_time.strftime('%Y')[2:]
         if i == 0 or cur_time.month != last_time.month:
-            draw_text(2 + i * dw, height - 22, cur_time.strftime('%b'))
+            draw_text(2 + i * dw, height - 22, cur_time.strftime('%b') + year_text)
         draw_text(2 + i * dw, height - 12, cur_time.strftime('%d'))
 
         i += 1
@@ -126,8 +135,7 @@ def main(args):
     config = Config(args.cfgfile)
 
     # Parse Call History File
-    history_parser = HistoryParser(args.infile)
-    calls = history_parser.parse()
+    calls = HistoryParser.parse(args.infile)
     print(f'Found Calls: {len(calls)}')
 
     # Filter Call History
@@ -137,11 +145,12 @@ def main(args):
         return
 
     # Print Statistics
-    durations = call_durations_by_number(calls)
-    for i, (number, duration) in enumerate(durations.items()):
-        print(f'{i}. {number} = {duration}')
-        if i >= config.top_callers:
-            break
+    if config.top_callers is not None and config.top_callers > 0:
+        durations = call_durations_by_number(calls)
+        for i, (number, duration) in enumerate(durations.items()):
+            print(f'{i}. {number} = {duration}')
+            if i >= config.top_callers:
+                break
 
     # Save Rendered Image to File
     image = render_image(calls)
